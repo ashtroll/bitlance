@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     # AI
     openai_api_key: str = ""
     anthropic_api_key: str = ""
-    ai_model: str = "gpt-4o"  # or claude-opus-4-6
+    grok_api_key: str = ""
+    ai_model: str = "llama-3.3-70b-versatile"
 
     # Escrow
     platform_fee_percent: float = 5.0

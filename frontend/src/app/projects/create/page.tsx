@@ -12,7 +12,10 @@ const PROJECT_TYPES = [
 export default function CreateProjectPage() {
   const router = useRouter()
   const [step, setStep] = useState<'form' | 'generating' | 'review'>('form')
-  const [form, setForm] = useState({ title: '', description: '', total_budget: '', project_type: '' })
+  const [form, setForm] = useState({
+    title: '', description: '', total_budget: '', project_type: '',
+    tech_stack: '', language_preferences: '', system_requirements: '', special_notes: '',
+  })
   const [project, setProject] = useState<any>(null)
   const [depositAmount, setDepositAmount] = useState('')
 
@@ -20,11 +23,18 @@ export default function CreateProjectPage() {
     e.preventDefault()
     setStep('generating')
     try {
+      const tech_stack = form.tech_stack
+        ? form.tech_stack.split(',').map(s => s.trim()).filter(Boolean)
+        : []
       const { data } = await projectsApi.create({
         title: form.title,
         description: form.description,
         total_budget: parseFloat(form.total_budget),
         project_type: form.project_type || undefined,
+        tech_stack,
+        language_preferences: form.language_preferences,
+        system_requirements: form.system_requirements,
+        special_notes: form.special_notes,
       })
       setProject(data)
       setDepositAmount(form.total_budget)
@@ -147,11 +157,43 @@ export default function CreateProjectPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Project Description</label>
-              <textarea required rows={5} value={form.description}
+              <textarea required rows={4} value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="Describe what you need built in detail. Include features, tech preferences, and any requirements..." />
+                placeholder="Describe what you need built in detail..." />
             </div>
+
+            {/* Specification fields */}
+            <div className="border border-blue-100 rounded-xl p-4 bg-blue-50/40 space-y-4">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Technical Specifications (AI will strictly follow these)</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Tech Stack <span className="text-slate-400 font-normal">(comma-separated)</span>
+                </label>
+                <input value={form.tech_stack} onChange={e => setForm({ ...form, tech_stack: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  placeholder="e.g. React, Node.js, PostgreSQL, Docker" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Language / Framework Preferences</label>
+                <input value={form.language_preferences} onChange={e => setForm({ ...form, language_preferences: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  placeholder="e.g. Python preferred, no PHP, TypeScript only" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">System / Infrastructure Requirements</label>
+                <input value={form.system_requirements} onChange={e => setForm({ ...form, system_requirements: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  placeholder="e.g. Must run on AWS Lambda, mobile-first, supports 10k concurrent users" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Special Notes / Constraints</label>
+                <textarea rows={2} value={form.special_notes} onChange={e => setForm({ ...form, special_notes: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white"
+                  placeholder="e.g. Must comply with GDPR, no third-party auth libraries, include unit tests" />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Total Budget ($)</label>

@@ -39,3 +39,26 @@ async def my_reputation(
     if not rep:
         raise HTTPException(status_code=404, detail="No reputation score yet")
     return rep
+
+
+@router.get("/me/breakdown")
+async def my_pfi_breakdown(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Full PFI score breakdown with tier, weights, and history."""
+    from app.services.pfi_service import PFIService
+    svc = PFIService(db)
+    return await svc.get_breakdown(current_user.id)
+
+
+@router.get("/{freelancer_id}/breakdown")
+async def pfi_breakdown(
+    freelancer_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Full PFI breakdown for a specific freelancer."""
+    from app.services.pfi_service import PFIService
+    svc = PFIService(db)
+    return await svc.get_breakdown(freelancer_id)

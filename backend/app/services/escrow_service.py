@@ -92,11 +92,17 @@ class EscrowService:
         )
         escrow = escrow_result.scalar_one_or_none()
         if not escrow:
-            raise HTTPException(status_code=404, detail="No escrow account found")
+            # No escrow — mark milestone as released without monetary action
+            milestone.release_status = "released"
+            milestone.payment_timestamp = datetime.utcnow()
+            return None
 
         amount = milestone.locked_amount
         if amount <= 0:
-            raise HTTPException(status_code=400, detail="No funds locked for this milestone")
+            # No funds locked — still mark released
+            milestone.release_status = "released"
+            milestone.payment_timestamp = datetime.utcnow()
+            return None
 
         # Calculate platform fee
         fee = round(amount * (settings.platform_fee_percent / 100), 2)
@@ -146,6 +152,9 @@ class EscrowService:
             select(EscrowAccount).where(EscrowAccount.project_id == project_id)
         )
         escrow = escrow_result.scalar_one_or_none()
+        if not escrow:
+            milestone.release_status = "refunded"
+            return None
 
         refund_amount = round(milestone.locked_amount * (percent / 100), 2)
         escrow.locked_balance = max(0, escrow.locked_balance - refund_amount)

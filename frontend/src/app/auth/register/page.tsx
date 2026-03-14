@@ -1,11 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { authApi } from '@/lib/api'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter()
   const params = useSearchParams()
   const defaultRole = params.get('role') || 'freelancer'
@@ -40,7 +40,6 @@ export default function RegisterPage() {
           <h1 className="text-2xl font-semibold mt-4 text-slate-800">Create your account</h1>
         </div>
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 space-y-5">
-          {/* Role Toggle */}
           <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             {['employer', 'freelancer'].map((r) => (
               <button key={r} type="button"
@@ -79,5 +78,17 @@ export default function RegisterPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   )
 }

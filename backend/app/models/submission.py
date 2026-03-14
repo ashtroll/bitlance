@@ -21,7 +21,7 @@ class Submission(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     milestone_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=False)
     freelancer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    submission_type: Mapped[SubmissionType] = mapped_column(SAEnum(SubmissionType), nullable=False)
+    submission_type: Mapped[SubmissionType] = mapped_column(SAEnum(SubmissionType, name="submission_type", create_type=False), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=True)  # text/url/code snippet
     repo_url: Mapped[str] = mapped_column(String(500), nullable=True)
     file_paths: Mapped[list] = mapped_column(JSONB, default=list)

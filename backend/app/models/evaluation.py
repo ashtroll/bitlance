@@ -20,7 +20,7 @@ class Evaluation(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     milestone_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=False)
     submission_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("submissions.id"), nullable=False)
-    completion_status: Mapped[CompletionStatus] = mapped_column(SAEnum(CompletionStatus), nullable=False)
+    completion_status: Mapped[CompletionStatus] = mapped_column(SAEnum(CompletionStatus, name="completion_status", create_type=False), nullable=False)
     confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
     quality_score: Mapped[float] = mapped_column(Float, nullable=True)
     feedback: Mapped[str] = mapped_column(Text, nullable=True)

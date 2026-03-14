@@ -38,7 +38,7 @@ class EscrowAccount(Base):
 
     project = relationship("Project", back_populates="escrow")
     user = relationship("User", back_populates="escrow_account")
-    transactions = relationship("Transaction", back_populates="escrow_account")
+    transactions = relationship("Transaction", back_populates="escrow_account", cascade="all, delete-orphan")
 
 
 class Transaction(Base):
@@ -47,9 +47,9 @@ class Transaction(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     escrow_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("escrow_accounts.id"), nullable=False)
     milestone_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=True)
-    transaction_type: Mapped[TransactionType] = mapped_column(SAEnum(TransactionType), nullable=False)
+    transaction_type: Mapped[TransactionType] = mapped_column(SAEnum(TransactionType, name="transaction_type", create_type=False), nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
-    status: Mapped[TransactionStatus] = mapped_column(SAEnum(TransactionStatus), default=TransactionStatus.pending)
+    status: Mapped[TransactionStatus] = mapped_column(SAEnum(TransactionStatus, name="transaction_status", create_type=False), default=TransactionStatus.pending)
     reference_id: Mapped[str] = mapped_column(String(100), nullable=True)
     notes: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

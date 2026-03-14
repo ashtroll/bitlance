@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, date
 from sqlalchemy import String, Text, ForeignKey, DateTime, Date, Float, Integer, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 import enum
 
 from app.database import Base
@@ -28,14 +28,19 @@ class Milestone(Base):
     order_index: Mapped[int] = mapped_column(Integer, default=0)
     deadline_days: Mapped[int] = mapped_column(Integer, nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=True)
+    acceptance_criteria: Mapped[list] = mapped_column(JSONB, default=list)
+    deliverable_type: Mapped[str] = mapped_column(String(50), default="code")
     payment_amount: Mapped[float] = mapped_column(Float, nullable=False)
     locked_amount: Mapped[float] = mapped_column(Float, default=0.0)
-    status: Mapped[MilestoneStatus] = mapped_column(SAEnum(MilestoneStatus), default=MilestoneStatus.pending)
+    status: Mapped[MilestoneStatus] = mapped_column(SAEnum(MilestoneStatus, name="milestone_status", create_type=False), default=MilestoneStatus.pending)
     release_status: Mapped[str] = mapped_column(String(50), default="locked")  # locked|released|refunded
     payment_timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    assigned_freelancer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
     project = relationship("Project", back_populates="milestones")
     submissions = relationship("Submission", back_populates="milestone", cascade="all, delete-orphan")
     evaluations = relationship("Evaluation", back_populates="milestone", cascade="all, delete-orphan")
+    assigned_freelancer = relationship("User", foreign_keys=[assigned_freelancer_id])

@@ -33,6 +33,9 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [reputation, setReputation] = useState<ReputationScore | null>(null)
   const [loading, setLoading] = useState(true)
+  const [actionId, setActionId] = useState<string | null>(null)
+
+  const loadProjects = () => projectsApi.list().then(r => setProjects(r.data))
 
   useEffect(() => {
     const stored = localStorage.getItem('user')
@@ -41,7 +44,7 @@ export default function DashboardPage() {
     setUser(u)
 
     Promise.all([
-      projectsApi.list().then(r => setProjects(r.data)),
+      loadProjects(),
       u.role === 'freelancer'
         ? reputationApi.me().then(r => setReputation(r.data)).catch(() => null)
         : Promise.resolve(),
@@ -51,6 +54,36 @@ export default function DashboardPage() {
   const handleLogout = () => {
     localStorage.clear()
     router.push('/')
+  }
+
+  const handleCancel = async (e: React.MouseEvent, projectId: string) => {
+    e.preventDefault()
+    if (!confirm('Cancel this project? This cannot be undone.')) return
+    setActionId(projectId)
+    try {
+      await projectsApi.cancel(projectId)
+      toast.success('Project cancelled')
+      await loadProjects()
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Cancel failed')
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  const handleDelete = async (e: React.MouseEvent, projectId: string) => {
+    e.preventDefault()
+    if (!confirm('Permanently delete this project? This cannot be undone.')) return
+    setActionId(projectId)
+    try {
+      await projectsApi.delete(projectId)
+      toast.success('Project deleted')
+      setProjects(prev => prev.filter(p => p.id !== projectId))
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Delete failed')
+    } finally {
+      setActionId(null)
+    }
   }
 
   if (loading) return (
@@ -84,22 +117,77 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Stats Row for Freelancers */}
-        {user?.role === 'freelancer' && reputation && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            {[
-              { label: 'PFI Score', value: Math.round(reputation.pfi_score) },
-              { label: 'Success Rate', value: `${Math.round(reputation.milestone_success_rate * 100)}%` },
-              { label: 'Quality Score', value: `${Math.round(reputation.avg_quality_score * 100)}%` },
-              { label: 'Total Milestones', value: reputation.total_milestones },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
+        {/* PFI Dashboard for Freelancers */}
+        {user?.role === 'freelancer' && reputation && (() => {
+          const score = reputation.pfi_score
+          const tier = score >= 750 ? { name: 'Platinum', icon: '💎', color: 'purple' }
+            : score >= 650 ? { name: 'Gold', icon: '🥇', color: 'yellow' }
+            : score >= 500 ? { name: 'Silver', icon: '🥈', color: 'blue' }
+            : { name: 'Bronze', icon: '🥉', color: 'amber' }
+          const pct = Math.round(((score - 300) / 550) * 100)
+          const metrics = [
+            { label: 'Success Rate', value: reputation.milestone_success_rate, weight: '40%', color: 'green' },
+            { label: 'Quality Score', value: reputation.avg_quality_score, weight: '30%', color: 'blue' },
+            { label: 'On-Time Rate', value: reputation.deadline_adherence_rate, weight: '20%', color: 'amber' },
+            { label: 'Dispute-Free', value: 1 - reputation.dispute_rate, weight: '10%', color: 'red' },
+          ]
+          return (
+            <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6">
+              <div className="flex items-start justify-between gap-6 mb-5">
+                <div>
+                  <div className="text-5xl font-black text-slate-900 leading-none">{Math.round(score)}</div>
+                  <div className="text-sm text-slate-400 mt-1">Professional Fidelity Index · out of 850</div>
+                  <div className="mt-2.5">
+                    <span className={`inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full border
+                      ${tier.color === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' :
+                        tier.color === 'yellow' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' :
+                        tier.color === 'blue' ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                        'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                      {tier.icon} {tier.name}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 max-w-sm">
+                  <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                    <span>300</span><span className="font-semibold text-slate-700">{Math.round(score)} / 850</span><span>850</span>
+                  </div>
+                  <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-700
+                      ${tier.color === 'purple' ? 'bg-purple-500' :
+                        tier.color === 'yellow' ? 'bg-yellow-500' :
+                        tier.color === 'blue' ? 'bg-blue-500' : 'bg-amber-500'}`}
+                      style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 text-center">{pct}% to maximum</div>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {metrics.map(m => (
+                  <div key={m.label} className={`rounded-xl border p-3
+                    ${m.color === 'green' ? 'bg-green-50 border-green-200 text-green-800' :
+                      m.color === 'blue' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                      m.color === 'amber' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                      'bg-red-50 border-red-200 text-red-800'}`}>
+                    <div className="text-xl font-bold">{Math.round(m.value * 100)}%</div>
+                    <div className="text-xs font-medium mt-0.5">{m.label}</div>
+                    <div className="text-xs opacity-60">weight {m.weight}</div>
+                    <div className="mt-2 h-1.5 bg-white/50 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full
+                        ${m.color === 'green' ? 'bg-green-500' :
+                          m.color === 'blue' ? 'bg-blue-500' :
+                          m.color === 'amber' ? 'bg-amber-500' : 'bg-red-400'}`}
+                        style={{ width: `${m.value * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 text-center text-xs text-slate-400">
+                PFI = 300 + 550 × (40% success + 30% quality + 20% on-time + 10% dispute-free)
+                · {reputation.total_milestones} milestone{reputation.total_milestones !== 1 ? 's' : ''} completed
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Projects List */}
         {projects.length === 0 ? (
@@ -115,26 +203,57 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-4">
             {projects.map((p) => (
-              <Link key={p.id} href={`/projects/${p.id}`}
-                className="block bg-white rounded-xl border border-slate-200 p-6 hover:shadow-md transition">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-slate-900">{p.title}</h3>
-                    <p className="text-sm text-slate-500 mt-1 line-clamp-2">{p.description}</p>
+              <div key={p.id} className="bg-white rounded-xl border border-slate-200 hover:shadow-md transition">
+                <Link href={`/projects/${p.id}`} className="block p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-slate-900">{p.title}</h3>
+                      <p className="text-sm text-slate-500 mt-1 line-clamp-2">{p.description}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 ml-4">
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[p.status]}`}>
+                        {p.status.replace('_', ' ')}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-700">${p.total_budget.toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2 ml-4">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[p.status]}`}>
-                      {p.status.replace('_', ' ')}
-                    </span>
-                    <span className="text-sm font-semibold text-slate-700">${p.total_budget.toLocaleString()}</span>
+                  <div className="mt-4 flex items-center gap-4 text-xs text-slate-400">
+                    <span>{p.milestones.length} milestones</span>
+                    <span>{p.milestones.filter(m => m.status === 'paid').length} completed</span>
+                    <span className="capitalize">{p.project_type.replace('_', ' ')}</span>
                   </div>
-                </div>
-                <div className="mt-4 flex items-center gap-4 text-xs text-slate-400">
-                  <span>{p.milestones.length} milestones</span>
-                  <span>{p.milestones.filter(m => m.status === 'paid').length} completed</span>
-                  <span className="capitalize">{p.project_type.replace('_', ' ')}</span>
-                </div>
-              </Link>
+                </Link>
+
+                {/* Employer action buttons */}
+                {user?.role === 'employer' && (
+                  <div className="px-6 pb-4 flex gap-2 border-t border-slate-100 pt-3">
+                    {['active', 'draft'].includes(p.status) && (
+                      <Link
+                        href={`/projects/${p.id}/edit`}
+                        onClick={e => e.stopPropagation()}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition">
+                        Edit
+                      </Link>
+                    )}
+                    {['active', 'draft'].includes(p.status) && (
+                      <button
+                        onClick={(e) => handleCancel(e, p.id)}
+                        disabled={actionId === p.id}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition disabled:opacity-50">
+                        {actionId === p.id ? '...' : 'Cancel'}
+                      </button>
+                    )}
+                    {['draft', 'active', 'cancelled'].includes(p.status) && (
+                      <button
+                        onClick={(e) => handleDelete(e, p.id)}
+                        disabled={actionId === p.id}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-50">
+                        {actionId === p.id ? '...' : 'Delete'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
